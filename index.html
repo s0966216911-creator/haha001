@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <!-- 3. 行動端優化：設定 viewport 禁止縮放並支援滿版瀏海螢幕 (viewport-fit=cover) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>極簡呼吸放鬆工具</title>
+    <!-- 引入 Google Fonts Noto Sans TC 以獲得更佳的中文字體顯示 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 基礎重置與行動端防反白、防誤觸設定 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            /* 避免反白選取文字 */
+            -webkit-user-select: none;
+            user-select: none;
+            /* 移除行動端點擊時的預設藍色高亮框 */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            /* 使用 dvh 確保在手機瀏覽器網址列收合時仍能精準置中 */
+            min-height: 100dvh;
+            background-color: #0f172a; /* 沉浸式深色背景 */
+            color: #f8fafc;
+            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden; /* 防止頁面上下滑動 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            /* 適應 iPhone 底部 Home Bar 與頂部瀏海安全區域 */
+            padding-top: max(2.5rem, env(safe-area-inset-top));
+            padding-bottom: max(3rem, env(safe-area-inset-bottom));
+            padding-left: max(1.5rem, env(safe-area-inset-left));
+            padding-right: max(1.5rem, env(safe-area-inset-right));
+        }
+
+        /* 頂部標題區塊 */
+        header {
+            text-align: center;
+            opacity: 0.85;
+            transition: opacity 0.5s ease;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            color: #e2e8f0;
+            margin-bottom: 0.4rem;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+        }
+
+        /* 1. 視覺核心：呼吸圓環容器 */
+        main {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            flex: 1;
+        }
+
+        .breath-wrapper {
+            position: relative;
+            width: 240px;
+            height: 240px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 外層柔和光暈波紋 */
+        .breath-halo {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(129, 140, 248, 0.12) 55%, rgba(15, 23, 42, 0) 75%);
+            filter: blur(12px);
+            transform: scale(1);
+            /* 預設平滑過渡，用於暫停重置時絲滑恢復初始大小 */
+            transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease;
+            pointer-events: none;
+        }
+
+        /* 主漸層光暈圓環 */
+        .breath-circle {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            /* 柔和的青藍到靛紫漸層 */
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(129, 140, 248, 0.25) 100%);
+            border: 1.5px solid rgba(125, 211, 252, 0.45);
+            box-shadow: 
+                0 0 30px rgba(56, 189, 248, 0.25),
+                inset 0 0 24px rgba(165, 180, 252, 0.2);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: scale(1);
+            /* 暫停重置時的過渡效果 */
+            transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.8s ease;
+        }
+
+        /* 2. 互動邏輯：啟動呼吸時的 8 秒循環動畫 (4秒放大吸氣 + 4秒縮小呼氣) */
+        .is-breathing .breath-circle {
+            animation: breatheCircle 8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+        }
+
+        .is-breathing .breath-halo {
+            animation: breatheHalo 8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+        }
+
+        /* 圓環本體縮放關鍵影格：0%~50%(4秒)放大，50%~100%(4秒)縮小 */
+        @keyframes breatheCircle {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 
+                    0 0 25px rgba(56, 189, 248, 0.2),
+                    inset 0 0 20px rgba(165, 180, 252, 0.15);
+                border-color: rgba(125, 211, 252, 0.35);
+            }
+            50% {
+                transform: scale(1.62);
+                box-shadow: 
+                    0 0 55px rgba(56, 189, 248, 0.5),
+                    inset 0 0 35px rgba(165, 180, 252, 0.35);
+                border-color: rgba(186, 230, 253, 0.8);
+            }
+        }
+
+        /* 外層光暈擴散關鍵影格 */
+        @keyframes breatheHalo {
+            0%, 100% {
+                transform: scale(1.05);
+                opacity: 0.45;
+            }
+            50% {
+                transform: scale(1.95);
+                opacity: 0.95;
+            }
+        }
+
+        /* 圓環中央提示文字（獨立於縮放圓環之外，保持字體清晰不變形） */
+        .breath-text {
+            position: absolute;
+            font-size: 1.15rem;
+            font-weight: 400;
+            letter-spacing: 0.2em;
+            color: #f1f5f9;
+            text-shadow: 0 2px 10px rgba(15, 23, 42, 0.6);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            /* 修正 letter-spacing 造成的視覺微偏右 */
+            padding-left: 0.2em;
+        }
+
+        /* 底部控制區塊 */
+        footer {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* 控制按鈕樣式 */
+        .control-btn {
+            appearance: none;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.75);
+            color: #f8fafc;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            padding: 0.95rem 2.75rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, border-color 0.25s ease;
+            /* 最小觸控目標高度優化 */
+            min-height: 52px;
+            min-width: 180px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 3. 行動端優化：按鈕 :active 縮放回饋 */
+        .control-btn:active {
+            transform: scale(0.94);
+            background: rgba(51, 65, 85, 0.9);
+        }
+
+        /* 進行中狀態的按鈕微調 */
+        .control-btn.is-active {
+            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(15, 23, 42, 0.6);
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 頂部極簡標題 -->
+    <header id="appHeader">
+        <h1>深呼吸</h1>
+        <p>跟隨光暈節奏，釋放緊繃情緒</p>
+    </header>
+
+    <!-- 中央視覺核心 -->
+    <main>
+        <div class="breath-wrapper" id="breathWrapper">
+            <div class="breath-halo"></div>
+            <div class="breath-circle"></div>
+            <div class="breath-text" id="breathText">準備</div>
+        </div>
+    </main>
+
+    <!-- 底部操作按鈕 -->
+    <footer>
+        <button type="button" class="control-btn" id="toggleBtn" aria-live="polite">
+            開始呼吸
+        </button>
+    </footer>
+
+    <script>
+        (function () {
+            // 取得 DOM 元素
+            const breathWrapper = document.getElementById('breathWrapper');
+            const breathText = document.getElementById('breathText');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const appHeader = document.getElementById('appHeader');
+
+            // 狀態變數
+            let isRunning = false;
+            let phaseTimer = null;
+
+            // 呼吸階段時間常數 (毫秒)
+            const INHALE_DURATION = 4000; // 4秒吸氣
+            const EXHALE_DURATION = 4000; // 4秒呼氣
+
+            /**
+             * 平滑切換中央提示文字
+             * @param {string} newText 要顯示的新文字
+             */
+            function updateCenterText(newText) {
+                breathText.style.opacity = '0';
+                setTimeout(() => {
+                    // 確保在延遲期間沒有被使用者按暫停
+                    if (!isRunning && newText !== '準備') return;
+                    breathText.textContent = newText;
+                    breathText.style.opacity = '1';
+                }, 150);
+            }
+
+            /**
+             * 執行單次 8 秒呼吸循環的文字切換邏輯
+             */
+            function runBreathCycle() {
+                // 0~4 秒：吸氣
+                updateCenterText('吸氣...');
+
+                // 第 4 秒切換為呼氣
+                phaseTimer = setTimeout(() => {
+                    if (!isRunning) return;
+                    updateCenterText('呼氣...');
+
+                    // 第 8 秒進入下一個循環
+                    phaseTimer = setTimeout(() => {
+                        if (!isRunning) return;
+                        runBreathCycle();
+                    }, EXHALE_DURATION);
+
+                }, INHALE_DURATION);
+            }
+
+            /**
+             * 開始呼吸練習
+             */
+            function startBreathing() {
+                isRunning = true;
+                
+                // 啟動 CSS 動畫
+                breathWrapper.classList.add('is-breathing');
+                
+                // 更新按鈕外觀與文字
+                toggleBtn.textContent = '暫停重置';
+                toggleBtn.classList.add('is-active');
+                
+                // 讓頂部標題稍微淡化，增強沉浸感
+                appHeader.style.opacity = '0.45';
+
+                // 觸發行動端微弱震動回饋 (若裝置支援)
+                if (navigator.vibrate) {
+                    navigator.vibrate(15);
+                }
+
+                // 啟動文字同步計時器
+                runBreathCycle();
+            }
+
+            /**
+             * 暫停並將圓環重置回初始狀態
+             */
+            function stopAndResetBreathing() {
+                isRunning = false;
+
+                // 清除所有進行中的計時器
+                if (phaseTimer) {
+                    clearTimeout(phaseTimer);
+                    phaseTimer = null;
+                }
+
+                // 移除 CSS 動畫類別，圓環會透過 transition 平滑縮回 scale(1)
+                breathWrapper.classList.remove('is-breathing');
+
+                // 重置中央文字與按鈕狀態
+                breathText.style.opacity = '1';
+                breathText.textContent = '準備';
+                toggleBtn.textContent = '開始呼吸';
+                toggleBtn.classList.remove('is-active');
+                appHeader.style.opacity = '0.85';
+
+                // 觸發行動端微弱震動回饋
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+            }
+
+            // 綁定按鈕點擊事件
+            toggleBtn.addEventListener('click', function () {
+                if (isRunning) {
+                    stopAndResetBreathing();
+                } else {
+                    startBreathing();
+                }
+            });
+
+            // 處理頁面切換至背景時的狀態重置，避免回來時動畫與文字不同步
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden && isRunning) {
+                    stopAndResetBreathing();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
